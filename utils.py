@@ -5,7 +5,7 @@ from skimage.transform import FundamentalMatrixTransform
 
 class FeatureTracker:
     def __init__(self):
-        self.orb = cv.ORB.create(200)
+        self.orb = cv.ORB.create(3000)
         self.bf = cv.BFMatcher(cv.NORM_HAMMING) # NORM_HAMMING should be used for ORB, check https://docs.opencv.org/4.x/dc/dc3/tutorial_py_matcher.html
         self.previous_extraction = None
     
@@ -13,11 +13,11 @@ class FeatureTracker:
         ### Detection
         # Get good corners to track from GFTT
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        corners = cv.goodFeaturesToTrack(gray, maxCorners=500, qualityLevel=0.01, minDistance=5)
+        corners = cv.goodFeaturesToTrack(gray, maxCorners=500, qualityLevel=0.01, minDistance=3)
 
         ### Extraction
         # Use these corners as keypoints for ORB
-        keypoints = [cv.KeyPoint(x=corner[0][0], y=corner[0][1], size=20) for corner in corners]
+        keypoints = [cv.KeyPoint(x=corner[0][0], y=corner[0][1], size=16) for corner in corners]
         keypoints, descriptors = self.orb.compute(img, keypoints)
 
         ### Matching
@@ -30,6 +30,12 @@ class FeatureTracker:
             return None
         matches = self.bf.knnMatch(descriptors, self.previous_extraction['descriptors'], k=2)
         goodKeypoints = []
+        # for match in matches:
+        #     queryKeypoint = keypoints[match.queryIdx]
+        #     trainKeypoint = self.previous_extraction['keypoints'][match.trainIdx]
+        #     kp1 = queryKeypoint.pt
+        #     kp2 = trainKeypoint.pt
+        #     goodKeypoints.append((kp1, kp2))
         for m, n in matches:
             if m.distance < 0.75 * n.distance:
                 kp1 = keypoints[m.queryIdx].pt
@@ -49,5 +55,9 @@ class FeatureTracker:
             )
             goodKeypoints = goodKeypoints[inliers]
 
+        self.previous_extraction = {
+            'keypoints': keypoints, 
+            'descriptors': descriptors
+        }
         return goodKeypoints
 
